@@ -9,7 +9,10 @@ import type {
 import { parseDate, withBalances } from './format';
 import { getToken, SESSION_EXPIRED_EVENT, setToken } from './session';
 
-const BASE_URL: string = (import.meta.env.VITE_API_URL as string | undefined) || '/api';
+const configuredApiUrl =
+  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://expensetrackerbackend-project-1.onrender.com/api' : '/api');
+const normalizedApiUrl = configuredApiUrl.replace(/\/+$/, '');
+const BASE_URL = normalizedApiUrl.endsWith('/api') ? normalizedApiUrl : `${normalizedApiUrl}/api`;
 
 export class ApiError extends Error {
   status: number;
