@@ -1,0 +1,35 @@
+services:
+  backend:
+    image: expense-tracker-backend:local
+    build:
+      context: ../ExpenseTrackerBackend
+      dockerfile: Dockerfile
+    env_file:
+      - ../ExpenseTrackerBackend/.env
+    environment:
+      CORS_ORIGINS: '["http://localhost:8080"]'
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: expense-tracker-react:local
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy

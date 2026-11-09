@@ -122,7 +122,7 @@ export default function BookDetail() {
     try {
       await entryApi.delete(entry.id);
       setEntries((list) => withBalances(list.filter((e) => e.id !== entry.id)));
-      toast('Entry deleted successfully');
+      toast('Entries deleted successfully');
     } catch (err) {
       toast(errorMessage(err, 'Failed to delete entry'), 'error');
     }

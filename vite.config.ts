@@ -3,9 +3,12 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
-  build: { chunkSizeWarningLimit: 1500 },
+  build: {
+    chunkSizeWarningLimit: 1500,
+    ...(mode === 'inspect' ? { minify: false, sourcemap: true } : {}),
+  },
   server: {
     port: 5173,
     // Forward /api to the FastAPI backend so no CORS changes are needed in dev
@@ -33,4 +36,4 @@ export default defineConfig({
       ],
     },
   },
-});
+}));

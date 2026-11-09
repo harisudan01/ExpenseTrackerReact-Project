@@ -129,4 +129,4 @@ export const apiEntry = (over: Partial<ExpenseEntryApi> = {}): ExpenseEntryApi =
   ...over,
 });
 
-export const testUser = { id: 7, name: 'Asha Kumar', email: 'asha@test.dev' };
+export const testUser = { id: 7, name: 'Asha Kumar', username: 'asha_k', email: 'asha@test.dev' };

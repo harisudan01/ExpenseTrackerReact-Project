@@ -27,7 +27,7 @@ describe('request basics', () => {
 
   it('uses the first validation message from a 422 list', async () => {
     mockApi({ 'POST /auth/signup': () => ({ status: 422, body: { detail: [{ msg: 'Bad email' }, { msg: 'x' }] } }) });
-    await expect(authApi.signup('a', 'b', 'c')).rejects.toThrow('Bad email');
+    await expect(authApi.signup('a', 'u', 'b', 'c')).rejects.toThrow('Bad email');
   });
 
   it('falls back to the default message for an unknown error body', async () => {
@@ -92,10 +92,21 @@ describe('authApi', () => {
       'GET /auth/me': () => ({ body: res.user }),
     });
     await authApi.login('a@b.co', 'pw');
-    await authApi.signup('A', 'a@b.co', 'pw');
+    await authApi.signup('A', 'aa', 'a@b.co', 'pw');
     expect(await authApi.me()).toEqual(res.user);
-    expect(calls[0].body).toEqual({ email: 'a@b.co', password: 'pw' });
-    expect(calls[1].body).toEqual({ name: 'A', email: 'a@b.co', password: 'pw' });
+    expect(calls[0].body).toEqual({ identifier: 'a@b.co', password: 'pw' });
+    expect(calls[1].body).toEqual({ name: 'A', username: 'aa', email: 'a@b.co', password: 'pw' });
+  });
+
+  it('requests a reset link and resets the password', async () => {
+    const { calls } = mockApi({
+      'POST /auth/forgot-password': () => ({ body: { message: 'sent' } }),
+      'POST /auth/reset-password': () => ({ body: { message: 'done' } }),
+    });
+    expect(await authApi.forgotPassword('asha_k')).toEqual({ message: 'sent' });
+    expect(await authApi.resetPassword('tok', 'secret123')).toEqual({ message: 'done' });
+    expect(calls[0].body).toEqual({ identifier: 'asha_k' });
+    expect(calls[1].body).toEqual({ token: 'tok', password: 'secret123' });
   });
 });
 

@@ -17,6 +17,22 @@ For production, set `VITE_API_URL` (see `.env.example`) to the deployed backend'
 npm run build      # outputs dist/
 ```
 
+## Docker
+
+Docker Compose builds a production Nginx image for React and a FastAPI image. The frontend proxies `/api` requests to the backend container. The backend uses the PostgreSQL database configured in `ExpenseTrackerBackend/.env`; no database credentials are included in the images.
+
+Keep `ExpenseTrackerReact` and `ExpenseTrackerBackend` as sibling folders. Ensure `ExpenseTrackerBackend/.env` contains valid `DATABASE_URL` and `JWT_SECRET_KEY` values. If it does not exist, copy `.env.example` to `.env` and fill in the values.
+
+Run these commands from the `ExpenseTrackerReact` folder:
+
+```bash
+docker compose build
+docker compose run --rm backend python -m app.database.migrate
+docker compose up -d
+```
+
+Open `http://localhost:8080`. The API is also available at `http://localhost:8000`; check `http://localhost:8000/health` and `http://localhost:8000/health/database` for service health. To stop the containers, run `docker compose down`.
+
 ## Tests
 
 [Vitest](https://vitest.dev) + React Testing Library, running in jsdom. Test files sit next to the code they test (`*.test.ts(x)`).

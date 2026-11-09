@@ -12,7 +12,7 @@ function Probe() {
     <div>
       <p data-testid="state">{checking ? 'checking' : user ? `user:${user.name}` : 'guest'}</p>
       <button onClick={() => login('asha@test.dev', 'secret123').catch(() => {})}>login</button>
-      <button onClick={() => signup('Asha Kumar', 'asha@test.dev', 'secret123')}>signup</button>
+      <button onClick={() => signup('Asha Kumar', 'asha_k', 'asha@test.dev', 'secret123')}>signup</button>
       <button onClick={logout}>logout</button>
     </div>
   );
@@ -80,7 +80,7 @@ describe('AuthProvider', () => {
     setup();
     await user.click(screen.getByText('signup'));
     await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('user:Asha Kumar'));
-    expect(calls[0].body).toEqual({ name: 'Asha Kumar', email: 'asha@test.dev', password: 'secret123' });
+    expect(calls[0].body).toEqual({ name: 'Asha Kumar', username: 'asha_k', email: 'asha@test.dev', password: 'secret123' });
   });
 
   it('a failed login leaves the user signed out', async () => {

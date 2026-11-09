@@ -27,6 +27,7 @@ const renderAuth = (start: '/signin' | '/signup') =>
             }
           />
           <Route path="/expenseApp/list" element={<p>books page</p>} />
+          <Route path="/forgot-password" element={<p>forgot page</p>} />
         </>
       ),
     },
@@ -47,10 +48,10 @@ describe('Sign In', () => {
     const { calls } = mockApi({});
     const { user } = renderAuth('/signin');
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
-    expect(screen.getByText('Please enter your email')).toBeInTheDocument();
+    expect(screen.getByText('Please enter your email or username')).toBeInTheDocument();
     expect(screen.getByText('Please enter your password')).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText('Email'), 'not-an-email');
+    await user.type(screen.getByLabelText('Email or username'), 'not@an-email');
     expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     expect(calls).toHaveLength(0);
   });
@@ -58,20 +59,38 @@ describe('Sign In', () => {
   it('signs in, stores the token, greets the user and opens their books', async () => {
     const { calls } = mockApi({ 'POST /auth/login': () => authOk });
     const { user } = renderAuth('/signin');
-    await user.type(screen.getByLabelText('Email'), '  asha@test.dev ');
+    await user.type(screen.getByLabelText('Email or username'), '  asha@test.dev ');
     await user.type(screen.getByLabelText('Password'), 'secret123');
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
     expect(await screen.findByText('books page')).toBeInTheDocument();
-    expect(calls[0].body).toEqual({ email: 'asha@test.dev', password: 'secret123' });
+    expect(calls[0].body).toEqual({ identifier: 'asha@test.dev', password: 'secret123' });
     expect(getToken()).toBe('tok');
     expect(screen.getByRole('status')).toHaveTextContent('Welcome back, Asha Kumar!');
+  });
+
+  it('signs in with a username', async () => {
+    const { calls } = mockApi({ 'POST /auth/login': () => authOk });
+    const { user } = renderAuth('/signin');
+    await user.type(screen.getByLabelText('Email or username'), 'asha_k');
+    await user.type(screen.getByLabelText('Password'), 'secret123');
+    await user.click(screen.getByRole('button', { name: /^sign in$/i }));
+
+    expect(await screen.findByText('books page')).toBeInTheDocument();
+    expect(calls[0].body).toEqual({ identifier: 'asha_k', password: 'secret123' });
+  });
+
+  it('links to Forgot password', async () => {
+    mockApi({});
+    const { user } = renderAuth('/signin');
+    await user.click(screen.getByRole('link', { name: 'Forgot password?' }));
+    expect(await screen.findByText('forgot page')).toBeInTheDocument();
   });
 
   it('shows the server error when sign-in fails', async () => {
     mockApi({ 'POST /auth/login': () => ({ status: 401, body: { detail: 'Incorrect email or password' } }) });
     const { user } = renderAuth('/signin');
-    await user.type(screen.getByLabelText('Email'), 'asha@test.dev');
+    await user.type(screen.getByLabelText('Email or username'), 'asha@test.dev');
     await user.type(screen.getByLabelText('Password'), 'wrong');
     await user.click(screen.getByRole('button', { name: /^sign in$/i }));
 
@@ -93,7 +112,7 @@ describe('Sign In', () => {
   it('switches to Sign Up, keeping the email but clearing the password', async () => {
     mockApi({});
     const { user } = renderAuth('/signin');
-    await user.type(screen.getByLabelText('Email'), 'asha@test.dev');
+    await user.type(screen.getByLabelText('Email or username'), 'asha@test.dev');
     await user.type(screen.getByLabelText('Password'), 'secret123');
     await user.click(screen.getByRole('link', { name: 'Create one' }));
 
@@ -101,6 +120,16 @@ describe('Sign In', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/signup');
     expect(screen.getByLabelText('Email')).toHaveValue('asha@test.dev');
     expect(screen.getByLabelText('Password')).toHaveValue('');
+  });
+
+  it('switches to Sign Up, putting a typed username in the Username field', async () => {
+    mockApi({});
+    const { user } = renderAuth('/signin');
+    await user.type(screen.getByLabelText('Email or username'), 'asha_k');
+    await user.click(screen.getByRole('link', { name: 'Create one' }));
+
+    expect(screen.getByLabelText('Username')).toHaveValue('asha_k');
+    expect(screen.getByLabelText('Email')).toHaveValue('');
   });
 });
 
@@ -133,8 +162,18 @@ describe('Sign Up', () => {
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(screen.getByText('Please enter your name')).toBeInTheDocument();
+    expect(screen.getByText('Please choose a username')).toBeInTheDocument();
     expect(screen.getByText('Password does not meet the requirements')).toBeInTheDocument();
     expect(screen.getByText('Passwords do not match')).toBeInTheDocument();
+    expect(calls).toHaveLength(0);
+  });
+
+  it('rejects an invalid username', async () => {
+    const { calls } = mockApi({});
+    const { user } = renderAuth('/signup');
+    await user.type(screen.getByLabelText('Username'), '_x');
+    await user.click(screen.getByRole('button', { name: /create account/i }));
+    expect(screen.getByText(/3-30 characters/)).toBeInTheDocument();
     expect(calls).toHaveLength(0);
   });
 
@@ -149,13 +188,14 @@ describe('Sign Up', () => {
     const { calls } = mockApi({ 'POST /auth/signup': () => ({ status: 201, ...authOk }) });
     const { user } = renderAuth('/signup');
     await user.type(screen.getByLabelText('Full name'), '  Asha Kumar ');
+    await user.type(screen.getByLabelText('Username'), 'Asha_K');
     await user.type(screen.getByLabelText('Email'), 'asha@test.dev');
     await user.type(screen.getByLabelText('Password'), 'secret123');
     await user.type(screen.getByLabelText('Confirm password'), 'secret123');
     await user.click(screen.getByRole('button', { name: /create account/i }));
 
     expect(await screen.findByText('books page')).toBeInTheDocument();
-    expect(calls[0].body).toEqual({ name: 'Asha Kumar', email: 'asha@test.dev', password: 'secret123' });
+    expect(calls[0].body).toEqual({ name: 'Asha Kumar', username: 'asha_k', email: 'asha@test.dev', password: 'secret123' });
     expect(screen.getByRole('status')).toHaveTextContent('Welcome, Asha Kumar! Your account is ready.');
   });
 
@@ -165,6 +205,7 @@ describe('Sign Up', () => {
     });
     const { user } = renderAuth('/signup');
     await user.type(screen.getByLabelText('Full name'), 'Asha');
+    await user.type(screen.getByLabelText('Username'), 'asha');
     await user.type(screen.getByLabelText('Email'), 'asha@test.dev');
     await user.type(screen.getByLabelText('Password'), 'secret123');
     await user.type(screen.getByLabelText('Confirm password'), 'secret123');

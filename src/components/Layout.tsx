@@ -83,6 +83,7 @@ function UserMenu() {
             </span>
             <div className="min-w-0">
               <p className="truncate text-sm font-bold">{user.name}</p>
+              {user.username && <p className="truncate text-xs text-teal-100">@{user.username}</p>}
               <p className="truncate text-xs text-white/70">{user.email}</p>
             </div>
           </div>

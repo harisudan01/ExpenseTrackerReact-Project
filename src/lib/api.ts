@@ -66,6 +66,8 @@ export function errorMessage(err: unknown, fallback: string): string {
 export interface User {
   id: number;
   name: string;
+  /** Null only for accounts created before usernames existed */
+  username?: string | null;
   email: string;
   created_at?: string;
 }
@@ -77,13 +79,31 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }, 'Sign in failed'),
-  signup: (name: string, email: string, password: string) =>
+  /** `identifier` is the user's email or username */
+  login: (identifier: string, password: string) =>
+    request<AuthResponse>(
+      '/auth/login',
+      { method: 'POST', body: JSON.stringify({ identifier, password }) },
+      'Sign in failed',
+    ),
+  signup: (name: string, username: string, email: string, password: string) =>
     request<AuthResponse>(
       '/auth/signup',
-      { method: 'POST', body: JSON.stringify({ name, email, password }) },
+      { method: 'POST', body: JSON.stringify({ name, username, email, password }) },
       'Sign up failed',
+    ),
+  /** Emails a reset link. The server replies the same way whether or not the account exists. */
+  forgotPassword: (identifier: string) =>
+    request<{ message: string }>(
+      '/auth/forgot-password',
+      { method: 'POST', body: JSON.stringify({ identifier }) },
+      'Could not send the reset link',
+    ),
+  resetPassword: (token: string, password: string) =>
+    request<{ message: string }>(
+      '/auth/reset-password',
+      { method: 'POST', body: JSON.stringify({ token, password }) },
+      'Could not reset your password',
     ),
   me: () => request<User>('/auth/me', {}, 'Failed to load your account'),
 };

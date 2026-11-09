@@ -7,8 +7,9 @@ interface AuthState {
   user: User | null;
   /** True while the saved token is being checked on first load */
   checking: boolean;
-  login: (email: string, password: string) => Promise<User>;
-  signup: (name: string, email: string, password: string) => Promise<User>;
+  /** `identifier` is the user's email or username */
+  login: (identifier: string, password: string) => Promise<User>;
+  signup: (name: string, username: string, email: string, password: string) => Promise<User>;
   logout: () => void;
 }
 
@@ -51,15 +52,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [toast]);
 
-  const login = useCallback(async (email: string, password: string) => {
-    const res = await authApi.login(email, password);
+  const login = useCallback(async (identifier: string, password: string) => {
+    const res = await authApi.login(identifier, password);
     setToken(res.access_token);
     setUser(res.user);
     return res.user;
   }, []);
 
-  const signup = useCallback(async (name: string, email: string, password: string) => {
-    const res = await authApi.signup(name, email, password);
+  const signup = useCallback(async (name: string, username: string, email: string, password: string) => {
+    const res = await authApi.signup(name, username, email, password);
     setToken(res.access_token);
     setUser(res.user);
     return res.user;
