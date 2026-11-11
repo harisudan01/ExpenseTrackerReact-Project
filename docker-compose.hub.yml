@@ -1,0 +1,58 @@
+# Runs Expense Tracker from the published Docker Hub images. No source code or build needed.
+#
+#   1. Save this file as docker-compose.hub.yml
+#   2. docker compose -f docker-compose.hub.yml up -d
+#   3. Open http://localhost:8080
+#
+# Optional settings can go in a .env file next to this file (or be set in the shell), e.g.
+#   TAG=1.0
+#   JWT_SECRET_KEY=<long random string>
+#   DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:5432/postgres
+#   SMTP_HOST=in-v3.mailjet.com  SMTP_USERNAME=...  SMTP_PASSWORD=...  SMTP_FROM=...
+#   FRONTEND_URL=https://your-public-frontend-url   (used in password reset emails)
+#
+# With no DATABASE_URL, a built-in SQLite database is used. It is kept in the "backend-data" volume.
+
+services:
+  backend:
+    image: ${DOCKERHUB_USER:-harisudan007}/expense-tracker-backend:${TAG:-1.0}
+    restart: unless-stopped
+    environment:
+      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-8080}"]'
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-8080}}
+      # Secrets come from the .env file next to this file (never hard-code them here)
+      DATABASE_URL: ${DATABASE_URL:-}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    volumes:
+      - backend-data:/app/data
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    image: ${DOCKERHUB_USER:-harisudan007}/expense-tracker-react:${TAG:-1.0}
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  backend-data:
