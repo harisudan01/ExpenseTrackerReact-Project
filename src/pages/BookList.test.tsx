@@ -3,7 +3,7 @@ import { Route, useParams } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import BookList from './BookList';
 import { decodeId } from '../lib/crypto';
-import { setToken } from '../lib/session';
+import { setSignedIn } from '../lib/session';
 import { apiEntry, book, mockApi, renderWithProviders, testUser, type FakeRequest } from '../test/utils';
 import type { ExpenseBook } from '../types';
 
@@ -23,7 +23,7 @@ function OpenedBook() {
 type Routes = Parameters<typeof mockApi>[0];
 
 const renderList = (books: ExpenseBook[], extra: Routes = {}) => {
-  setToken('tok');
+  setSignedIn(true);
   const api = mockApi({
     'GET /auth/me': () => ({ body: testUser }),
     'GET /books': () => ({ body: books }),

@@ -2,11 +2,11 @@ import { screen, waitFor } from '@testing-library/react';
 import { Route } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { GuestOnly, RequireAuth } from './RouteGuards';
-import { setToken } from '../../lib/session';
+import { setSignedIn } from '../../lib/session';
 import { mockApi, renderWithProviders, testUser } from '../../test/utils';
 
 const signedIn = () => {
-  setToken('tok');
+  setSignedIn(true);
   mockApi({ 'GET /auth/me': () => ({ body: testUser }) });
 };
 

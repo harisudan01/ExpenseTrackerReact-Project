@@ -11,7 +11,7 @@ npm run dev        # http://localhost:5173
 
 In dev, `/api` is proxied to `http://localhost:8000` (see `vite.config.ts`), so the backend's CORS list doesn't need changing.
 
-For production, set `VITE_API_URL` (see `.env.example`) to the deployed backend's `/api` URL, and add the frontend's origin to the backend's `CORS_ORIGINS`.
+In production the app also calls `/api` on its own site: on Vercel the rewrite in `vercel.json` forwards it to the backend, and in Docker nginx does. Keep it that way. The login session is an HttpOnly `SameSite=Strict` cookie, which browsers won't send to an API on a different site, so don't point `VITE_API_URL` straight at the backend's own domain.
 
 ```bash
 npm run build      # outputs dist/

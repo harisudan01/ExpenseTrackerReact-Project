@@ -20,6 +20,10 @@ services:
     environment:
       CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-8080}"]'
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-8080}}
+      # Trust the client IP that the frontend's nginx passes in X-Forwarded-For (used by login rate limits)
+      FORWARDED_ALLOW_IPS: "*"
+      # Served over plain http, so the session cookie can't be HTTPS-only. Set true behind HTTPS.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       # Secrets come from the .env file next to this file (never hard-code them here)
       DATABASE_URL: ${DATABASE_URL:-}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:-}

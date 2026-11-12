@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { authApi, ApiError, type User } from '../../lib/api';
-import { getToken, SESSION_EXPIRED_EVENT, setToken } from '../../lib/session';
+import { clearLegacyToken, isSignedIn, SESSION_EXPIRED_EVENT, setSignedIn } from '../../lib/session';
 import { useToast } from '../ui/Toast';
 
 interface AuthState {
@@ -24,17 +24,18 @@ export function useAuth(): AuthState {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
   const [user, setUser] = useState<User | null>(null);
-  const [checking, setChecking] = useState(() => !!getToken());
+  const [checking, setChecking] = useState(() => isSignedIn());
 
-  // Restore the session from a saved token
+  // Restore the session: the cookie can't be read here, so ask the server who is signed in
   useEffect(() => {
-    if (!getToken()) return;
+    clearLegacyToken();
+    if (!isSignedIn()) return;
     authApi
       .me()
       .then(setUser)
       .catch((err) => {
-        // Only drop the token if the server rejected it, not if it was unreachable
-        if (err instanceof ApiError && err.status === 401) setToken(null);
+        // Only forget the session if the server rejected it, not if it was unreachable
+        if (err instanceof ApiError && err.status === 401) setSignedIn(false);
         else toast(err instanceof ApiError ? err.message : 'Could not restore your session', 'error');
       })
       .finally(() => setChecking(false));
@@ -54,21 +55,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (identifier: string, password: string) => {
     const res = await authApi.login(identifier, password);
-    setToken(res.access_token);
+    setSignedIn(true);
     setUser(res.user);
     return res.user;
   }, []);
 
   const signup = useCallback(async (name: string, username: string, email: string, password: string) => {
     const res = await authApi.signup(name, username, email, password);
-    setToken(res.access_token);
+    setSignedIn(true);
     setUser(res.user);
     return res.user;
   }, []);
 
   const logout = useCallback(() => {
-    setToken(null);
+    setSignedIn(false);
     setUser(null);
+    // Server side: cancels the token everywhere and clears the cookie. The UI is signed out either way.
+    authApi.logout().catch(() => {});
   }, []);
 
   const value = useMemo(

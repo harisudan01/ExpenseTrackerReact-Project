@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   ArrowDownLeft,
   ArrowLeft,
   ArrowUpRight,
   CalendarDays,
+  ChartColumn,
   ChevronLeft,
   ChevronRight,
   Eye,
@@ -32,6 +33,7 @@ const PAGE_SIZES = [10, 20, 40];
 
 export default function BookDetail() {
   const { id, mode } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
@@ -44,8 +46,9 @@ export default function BookDetail() {
   const [loading, setLoading] = useState(true);
   const [drawer, setDrawer] = useState<DrawerState | null>(null);
 
-  // filters + paging (client side, so running balances stay correct)
-  const [search, setSearch] = useState('');
+  // filters + paging (client side, so running balances stay correct).
+  // ?q= pre-fills the search, e.g. when coming from a category on the Insights page.
+  const [search, setSearch] = useState(() => searchParams.get('q') ?? '');
   const [type, setType] = useState<TypeFilter>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -122,7 +125,7 @@ export default function BookDetail() {
     try {
       await entryApi.delete(entry.id);
       setEntries((list) => withBalances(list.filter((e) => e.id !== entry.id)));
-      toast('Entries deleted successfully');
+      toast('Entry deleted successfully');
     } catch (err) {
       toast(errorMessage(err, 'Failed to delete entry'), 'error');
     }
@@ -172,6 +175,12 @@ export default function BookDetail() {
               <span className="rounded-full bg-white/10 px-2.5 py-1 text-white/85 ring-1 ring-white/20">
                 {entries.length} {entries.length === 1 ? 'entry' : 'entries'}
               </span>
+              <Link
+                to={`/expenseApp/insights?book=${id}`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-white/85 ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white"
+              >
+                <ChartColumn size={12} /> Charts
+              </Link>
             </div>
           </div>
           {canEdit && (

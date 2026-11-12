@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
-import { CalendarClock, ChevronDown, LibraryBig, LogOut, PiggyBank, ShieldCheck, Wallet } from 'lucide-react';
+import { CalendarClock, ChartColumn, ChevronDown, LibraryBig, LogOut, PiggyBank, ShieldCheck, Wallet } from 'lucide-react';
 import clsx from 'clsx';
 import { useToast } from './ui/Toast';
 import { useConfirm } from './ui/Confirm';
 import { useAuth } from './auth/AuthContext';
 import ThemeToggle from './theme/ThemeToggle';
+
+/** Main menu: the sidebar on large screens, a row under the top bar on smaller ones */
+const NAV_ITEMS = [
+  { to: '/expenseApp/list', label: 'My Books', icon: LibraryBig },
+  { to: '/expenseApp/insights', label: 'Insights', icon: ChartColumn },
+];
 
 export const initials = (name: string) =>
   name
@@ -164,18 +170,21 @@ function Sidebar() {
 
       <nav className="relative mt-10 space-y-1">
         <p className="mb-2 px-3 text-[11px] font-bold tracking-widest text-white/50 uppercase">Menu</p>
-        <NavLink
-          to="/expenseApp/list"
-          className={({ isActive }) =>
-            clsx(
-              'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
-              isActive ? 'bg-white text-brand-ink shadow-lg shadow-black/10' : 'text-white/80 hover:bg-white/10 hover:text-white',
-            )
-          }
-        >
-          <LibraryBig size={19} />
-          My Books
-        </NavLink>
+        {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              clsx(
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition',
+                isActive ? 'bg-white text-brand-ink shadow-lg shadow-black/10' : 'text-white/80 hover:bg-white/10 hover:text-white',
+              )
+            }
+          >
+            <Icon size={19} />
+            {label}
+          </NavLink>
+        ))}
       </nav>
 
       <div className="relative mt-auto space-y-3">
@@ -215,6 +224,23 @@ export default function Layout() {
               <UserMenu />
             </div>
           </div>
+          <nav aria-label="Menu" className="mx-auto flex max-w-6xl gap-1.5 px-3 pb-2.5 sm:px-6 lg:hidden">
+            {NAV_ITEMS.map(({ to, label, icon: Icon }) => (
+              <NavLink
+                key={to}
+                to={to}
+                className={({ isActive }) =>
+                  clsx(
+                    'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition sm:flex-none',
+                    isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700',
+                  )
+                }
+              >
+                <Icon size={17} />
+                {label}
+              </NavLink>
+            ))}
+          </nav>
         </header>
         <main className="mx-auto max-w-6xl px-3 py-6 sm:px-6 sm:py-8 lg:px-10">
           <Outlet />

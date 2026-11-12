@@ -2,8 +2,8 @@ import { screen, waitFor, within } from '@testing-library/react';
 import { Route } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import BookDetail from './BookDetail';
-import { encodeId } from '../lib/crypto';
-import { setToken } from '../lib/session';
+import { decodeId, encodeId } from '../lib/crypto';
+import { setSignedIn } from '../lib/session';
 import { apiEntry, book, mockApi, renderWithProviders, testUser, type FakeRequest } from '../test/utils';
 import type { ExpenseEntryApi } from '../types';
 
@@ -19,7 +19,7 @@ const ENTRIES: ExpenseEntryApi[] = [
 const renderDetail = (
   { mode = 'edit', entries = ENTRIES, extra = {}, token }: { mode?: string; entries?: ExpenseEntryApi[]; extra?: Routes; token?: string } = {},
 ) => {
-  setToken('tok');
+  setSignedIn(true);
   const api = mockApi({
     'GET /auth/me': () => ({ body: testUser }),
     'GET /books/:id': () => ({ body: book({ id: 1, name: 'Household' }) }),
@@ -49,6 +49,27 @@ describe('BookDetail', () => {
     expect(card('Total Cash In')).toHaveTextContent('₹1,000');
     expect(card('Total Cash Out')).toHaveTextContent('₹500');
     expect(card('Net Balance')).toHaveTextContent('₹500');
+  });
+
+  it('links to this book on the Insights page and pre-fills the search from ?q=', async () => {
+    setSignedIn(true);
+    mockApi({
+      'GET /auth/me': () => ({ body: testUser }),
+      'GET /books/:id': () => ({ body: book({ id: 1, name: 'Household' }) }),
+      'GET /books/:id/entries': () => ({ body: ENTRIES }),
+    });
+    renderWithProviders(<BookDetail />, {
+      route: `/expenseApp/${encodeId(1)}/view?q=Food`,
+      path: '/expenseApp/:id/:mode',
+      withAuth: true,
+    });
+    await waitFor(() => expect(bodyRows()).toHaveLength(1));
+    expect(bodyRows()[0]).toHaveTextContent('Dinner');
+    expect(screen.getByPlaceholderText(/search remarks/i)).toHaveValue('Food');
+    const href = screen.getByRole('link', { name: /charts/i }).getAttribute('href') ?? '';
+    const [path, query] = href.split('?');
+    expect(path).toBe('/expenseApp/insights');
+    expect(decodeId(new URLSearchParams(query).get('book') ?? undefined)).toBe(1);
   });
 
   it('lists entries newest first with running balances', async () => {

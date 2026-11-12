@@ -8,6 +8,10 @@ services:
       - ../ExpenseTrackerBackend/.env
     environment:
       CORS_ORIGINS: '["http://localhost:8080"]'
+      # Trust the client IP that the frontend's nginx passes in X-Forwarded-For (used by login rate limits)
+      FORWARDED_ALLOW_IPS: "*"
+      # Served over plain http, so the session cookie can't be HTTPS-only. Set true behind HTTPS.
+      COOKIE_SECURE: "false"
     ports:
       - "8000:8000"
     healthcheck:

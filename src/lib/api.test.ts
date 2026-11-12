@@ -1,20 +1,21 @@
 import { describe, expect, it, vi } from 'vitest';
 import { apiEntry, book, mockApi } from '../test/utils';
 import { ApiError, authApi, bookApi, entryApi, errorMessage } from './api';
-import { getToken, SESSION_EXPIRED_EVENT, setToken } from './session';
+import { isSignedIn, SESSION_EXPIRED_EVENT, setSignedIn } from './session';
 
 describe('request basics', () => {
-  it('sends the bearer token when signed in', async () => {
-    setToken('tok123');
-    const { calls } = mockApi({ 'GET /books': () => ({ body: [] }) });
+  it('sends the session cookie and never an Authorization header', async () => {
+    setSignedIn(true);
+    const { fetchMock, calls } = mockApi({ 'GET /books': () => ({ body: [] }) });
     await bookApi.getAll();
-    expect(calls[0].headers.Authorization).toBe('Bearer tok123');
+    expect(fetchMock.mock.calls[0][1]?.credentials).toBe('include');
+    expect(calls[0].headers.Authorization).toBeUndefined();
   });
 
-  it('sends no Authorization header when signed out', async () => {
-    const { calls } = mockApi({ 'GET /books': () => ({ body: [] }) });
+  it('calls the API on this site under /api by default', async () => {
+    const { fetchMock } = mockApi({ 'GET /books': () => ({ body: [] }) });
     await bookApi.getAll();
-    expect(calls[0].headers.Authorization).toBeUndefined();
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/books');
   });
 
   it('turns a string FastAPI detail into the error message', async () => {
@@ -50,26 +51,26 @@ describe('request basics', () => {
 });
 
 describe('session expiry', () => {
-  it('clears the token and fires the expired event on a 401', async () => {
-    setToken('old');
+  it('forgets the session and fires the expired event on a 401', async () => {
+    setSignedIn(true);
     const listener = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, listener);
     mockApi({ 'GET /books': () => ({ status: 401, body: { detail: 'expired' } }) });
 
     await expect(bookApi.getAll()).rejects.toThrow('expired');
-    expect(getToken()).toBeNull();
+    expect(isSignedIn()).toBe(false);
     expect(listener).toHaveBeenCalledTimes(1);
     window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
   });
 
   it('does not treat a wrong-password 401 on login as an expired session', async () => {
-    setToken('keep');
+    setSignedIn(true);
     const listener = vi.fn();
     window.addEventListener(SESSION_EXPIRED_EVENT, listener);
     mockApi({ 'POST /auth/login': () => ({ status: 401, body: { detail: 'Incorrect email or password' } }) });
 
     await expect(authApi.login('a@b.co', 'x')).rejects.toThrow('Incorrect email or password');
-    expect(getToken()).toBe('keep');
+    expect(isSignedIn()).toBe(true);
     expect(listener).not.toHaveBeenCalled();
     window.removeEventListener(SESSION_EXPIRED_EVENT, listener);
   });
@@ -84,8 +85,14 @@ describe('errorMessage', () => {
 });
 
 describe('authApi', () => {
+  it('posts to /auth/logout', async () => {
+    const { calls } = mockApi({ 'POST /auth/logout': () => ({ body: { message: 'bye' } }) });
+    await expect(authApi.logout()).resolves.toEqual({ message: 'bye' });
+    expect(calls[0].method).toBe('POST');
+  });
+
   it('posts credentials to login, signup and reads /me', async () => {
-    const res = { access_token: 't', token_type: 'bearer', user: { id: 1, name: 'A', email: 'a@b.co' } };
+    const res = { user: { id: 1, name: 'A', email: 'a@b.co' } };
     const { calls } = mockApi({
       'POST /auth/login': () => ({ body: res }),
       'POST /auth/signup': () => ({ status: 201, body: res }),

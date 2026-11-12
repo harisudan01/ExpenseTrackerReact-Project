@@ -7,10 +7,11 @@ import type {
   ExpenseEntryPayload,
 } from '../types';
 import { parseDate, withBalances } from './format';
-import { getToken, SESSION_EXPIRED_EVENT, setToken } from './session';
+import { isSignedIn, SESSION_EXPIRED_EVENT, setSignedIn } from './session';
 
-const configuredApiUrl =
-  import.meta.env.VITE_API_URL || (import.meta.env.PROD ? 'https://expensetrackerbackend-project-1.onrender.com/api' : '/api');
+// The API is reached under this site's own /api (Vite dev proxy, nginx, or the Vercel rewrite in vercel.json),
+// so the HttpOnly session cookie is first-party and can use SameSite=Strict.
+const configuredApiUrl = import.meta.env.VITE_API_URL || '/api';
 const normalizedApiUrl = configuredApiUrl.replace(/\/+$/, '');
 const BASE_URL = normalizedApiUrl.endsWith('/api') ? normalizedApiUrl : `${normalizedApiUrl}/api`;
 
@@ -31,14 +32,14 @@ function detailMessage(body: unknown, fallback: string): string {
 }
 
 async function request<T>(path: string, init: RequestInit = {}, fallback = 'Something went wrong'): Promise<T> {
-  const token = getToken();
   let res: Response;
   try {
     res = await fetch(`${BASE_URL}${path}`, {
       ...init,
+      // Sends the HttpOnly session cookie (the login token is never visible to this code)
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },
     });
@@ -47,9 +48,9 @@ async function request<T>(path: string, init: RequestInit = {}, fallback = 'Some
   }
   const body = res.status === 204 ? null : await res.json().catch(() => null);
   if (!res.ok) {
-    // A rejected token anywhere except the login/signup forms means the session is over
-    if (res.status === 401 && token && !path.startsWith('/auth/login') && !path.startsWith('/auth/signup')) {
-      setToken(null);
+    // A rejected session anywhere except the login/signup forms means the session is over
+    if (res.status === 401 && isSignedIn() && !path.startsWith('/auth/login') && !path.startsWith('/auth/signup')) {
+      setSignedIn(false);
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
     throw new ApiError(detailMessage(body, fallback), res.status);
@@ -72,9 +73,8 @@ export interface User {
   created_at?: string;
 }
 
+/** The login token itself comes back only in the HttpOnly session cookie */
 export interface AuthResponse {
-  access_token: string;
-  token_type: string;
   user: User;
 }
 
@@ -106,6 +106,8 @@ export const authApi = {
       'Could not reset your password',
     ),
   me: () => request<User>('/auth/me', {}, 'Failed to load your account'),
+  /** Ends the session on every device and removes the cookie */
+  logout: () => request<{ message: string }>('/auth/logout', { method: 'POST' }, 'Could not sign out'),
 };
 
 // ---------- books ----------

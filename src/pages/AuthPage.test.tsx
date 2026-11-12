@@ -3,7 +3,7 @@ import { Route } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import AuthPage from './AuthPage';
 import { GuestOnly } from '../components/auth/RouteGuards';
-import { getToken } from '../lib/session';
+import { isSignedIn } from '../lib/session';
 import { mockApi, renderWithProviders, testUser } from '../test/utils';
 
 /** Same routing as main.tsx for the auth screens */
@@ -33,7 +33,7 @@ const renderAuth = (start: '/signin' | '/signup') =>
     },
   );
 
-const authOk = { body: { access_token: 'tok', token_type: 'bearer', user: testUser } };
+const authOk = { body: { user: testUser } };
 
 describe('Sign In', () => {
   it('renders the sign-in form and sets the page title', () => {
@@ -65,7 +65,7 @@ describe('Sign In', () => {
 
     expect(await screen.findByText('books page')).toBeInTheDocument();
     expect(calls[0].body).toEqual({ identifier: 'asha@test.dev', password: 'secret123' });
-    expect(getToken()).toBe('tok');
+    expect(isSignedIn()).toBe(true);
     expect(screen.getByRole('status')).toHaveTextContent('Welcome back, Asha Kumar!');
   });
 

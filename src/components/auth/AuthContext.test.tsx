@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { AuthProvider, useAuth } from './AuthContext';
 import { ToastProvider } from '../ui/Toast';
-import { getToken, SESSION_EXPIRED_EVENT, setToken } from '../../lib/session';
+import { isSignedIn, SESSION_EXPIRED_EVENT, setSignedIn } from '../../lib/session';
 import { mockApi, testUser } from '../../test/utils';
 
 function Probe() {
@@ -27,51 +27,76 @@ const setup = () =>
     </ToastProvider>,
   );
 
-const authOk = { body: { access_token: 'new-token', token_type: 'bearer', user: testUser } };
+const authOk = { body: { user: testUser } };
 
 describe('AuthProvider', () => {
-  it('starts as a guest when there is no saved token', () => {
+  it('starts as a guest when not signed in', () => {
     mockApi({});
     setup();
     expect(screen.getByTestId('state')).toHaveTextContent('guest');
   });
 
-  it('restores the user from a saved token', async () => {
-    setToken('saved');
+  it('restores the user from the session cookie', async () => {
+    setSignedIn(true);
     mockApi({ 'GET /auth/me': () => ({ body: testUser }) });
     setup();
     expect(screen.getByTestId('state')).toHaveTextContent('checking');
     await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('user:Asha Kumar'));
   });
 
-  it('drops a token the server rejects', async () => {
-    setToken('stale');
+  it('forgets a session the server rejects', async () => {
+    setSignedIn(true);
     mockApi({ 'GET /auth/me': () => ({ status: 401, body: { detail: 'expired' } }) });
     setup();
     await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('guest'));
-    expect(getToken()).toBeNull();
+    expect(isSignedIn()).toBe(false);
   });
 
-  it('keeps the token if the server is unreachable, and says so', async () => {
-    setToken('saved');
+  it('keeps the session if the server is unreachable, and says so', async () => {
+    setSignedIn(true);
     mockApi({ 'GET /auth/me': () => ({ status: 500, body: { detail: 'Database down' } }) });
     setup();
     await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('guest'));
-    expect(getToken()).toBe('saved');
+    expect(isSignedIn()).toBe(true);
     expect(screen.getByRole('status')).toHaveTextContent('Database down');
   });
 
-  it('login stores the token and sets the user; logout clears both', async () => {
+  it('login marks the session and sets the user; logout ends the session on the server too', async () => {
     const user = userEvent.setup();
-    mockApi({ 'POST /auth/login': () => authOk });
+    const { calls } = mockApi({
+      'POST /auth/login': () => authOk,
+      'POST /auth/logout': () => ({ body: { message: 'You have been signed out.' } }),
+    });
     setup();
     await user.click(screen.getByText('login'));
     await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('user:Asha Kumar'));
-    expect(getToken()).toBe('new-token');
+    expect(isSignedIn()).toBe(true);
 
     await user.click(screen.getByText('logout'));
     expect(screen.getByTestId('state')).toHaveTextContent('guest');
-    expect(getToken()).toBeNull();
+    expect(isSignedIn()).toBe(false);
+    await waitFor(() => expect(calls.map((c) => `${c.method} ${c.path}`)).toContain('POST /auth/logout'));
+  });
+
+  it('signs out locally even if the logout request fails', async () => {
+    const user = userEvent.setup();
+    mockApi({
+      'POST /auth/login': () => authOk,
+      'POST /auth/logout': () => ({ status: 500, body: { detail: 'down' } }),
+    });
+    setup();
+    await user.click(screen.getByText('login'));
+    await waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('user:'));
+    await user.click(screen.getByText('logout'));
+    expect(screen.getByTestId('state')).toHaveTextContent('guest');
+    expect(isSignedIn()).toBe(false);
+  });
+
+  it('removes a login token saved by an older version', () => {
+    localStorage.setItem('et_token', 'old-jwt');
+    mockApi({});
+    setup();
+    expect(localStorage.getItem('et_token')).toBeNull();
   });
 
   it('signup signs the user in', async () => {
@@ -88,7 +113,7 @@ describe('AuthProvider', () => {
     mockApi({ 'POST /auth/login': () => ({ status: 401, body: { detail: 'Incorrect email or password' } }) });
     setup();
     await user.click(screen.getByText('login'));
-    await waitFor(() => expect(getToken()).toBeNull());
+    await waitFor(() => expect(isSignedIn()).toBe(false));
     expect(screen.getByTestId('state')).toHaveTextContent('guest');
   });
 

@@ -13,6 +13,7 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import BookList from './pages/BookList';
 import BookDetail from './pages/BookDetail';
+import InsightsPage from './pages/InsightsPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -29,6 +30,7 @@ createRoot(document.getElementById('root')!).render(
               <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route path="/expenseApp" element={<RequireAuth><Layout /></RequireAuth>}>
                 <Route path="list" element={<BookList />} />
+                <Route path="insights" element={<InsightsPage />} />
                 <Route path=":id/:mode" element={<BookDetail />} />
               </Route>
               <Route path="*" element={<Navigate to="/expenseApp/list" replace />} />

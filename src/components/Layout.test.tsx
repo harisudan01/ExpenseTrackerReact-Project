@@ -1,11 +1,11 @@
 import { act, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import Layout from './Layout';
-import { getToken, setToken } from '../lib/session';
+import { isSignedIn, setSignedIn } from '../lib/session';
 import { mockApi, renderWithProviders, testUser } from '../test/utils';
 
 const renderSignedIn = async () => {
-  setToken('tok');
+  setSignedIn(true);
   mockApi({ 'GET /auth/me': () => ({ body: testUser }) });
   const utils = renderWithProviders(<Layout />, { route: '/expenseApp/list', withAuth: true });
   await screen.findByText('AK'); // initials appear once /me resolves
@@ -47,11 +47,17 @@ describe('Layout', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('has a sidebar with the active "My Books" link', async () => {
+  it('has a menu with "My Books" (active) and "Insights", in the sidebar and the phone menu row', async () => {
     await renderSignedIn();
-    const link = screen.getByRole('link', { name: 'My Books' });
-    expect(link).toHaveAttribute('href', '/expenseApp/list');
-    expect(link).toHaveClass('bg-white'); // active style on the books route
+    const books = screen.getAllByRole('link', { name: 'My Books' });
+    const insights = screen.getAllByRole('link', { name: 'Insights' });
+    expect(books).toHaveLength(2);
+    expect(insights).toHaveLength(2);
+    books.forEach((l) => expect(l).toHaveAttribute('href', '/expenseApp/list'));
+    insights.forEach((l) => expect(l).toHaveAttribute('href', '/expenseApp/insights'));
+    expect(books[0]).toHaveClass('bg-white'); // active style on the books route (sidebar)
+    expect(books[1]).toHaveClass('bg-brand-50'); // active style in the phone menu row
+    expect(insights[0]).not.toHaveClass('bg-white');
   });
 
   it('signs out after confirmation', async () => {
@@ -60,7 +66,7 @@ describe('Layout', () => {
     await user.click(screen.getByRole('menuitem', { name: /sign out/i }));
     await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Sign out' }));
 
-    expect(getToken()).toBeNull();
+    expect(isSignedIn()).toBe(false);
     expect(screen.queryByText('AK')).not.toBeInTheDocument();
     expect(screen.getByRole('status')).toHaveTextContent('You have been signed out');
   });
@@ -70,7 +76,7 @@ describe('Layout', () => {
     await user.click(screen.getByRole('button', { expanded: false }));
     await user.click(screen.getByRole('menuitem', { name: /sign out/i }));
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(getToken()).toBe('tok');
+    expect(isSignedIn()).toBe(true);
     expect(screen.getByText('AK')).toBeInTheDocument();
   });
 });
